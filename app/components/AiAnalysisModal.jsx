@@ -272,8 +272,8 @@ export default function AiAnalysisModal({ fund, onClose }) {
 
               <div className="row" style={{ gap: 8, marginTop: 12 }}>
                 <input
-                  className="input text-[16PX]"
-                  style={{ flex: 1 }}
+                  className="input"
+                  style={{ flex: 1, fontSize: 16 }}
                   value={input}
                   placeholder="追问，如：现在补仓合适吗？"
                   disabled={streaming}

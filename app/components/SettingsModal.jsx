@@ -326,7 +326,8 @@ export default function SettingsModal({
               DeepSeek API Key（AI 分析功能，仅保存在本机）
             </div>
             <input
-              className="input text-[16PX]"
+              className="input"
+              style={{ fontSize: 16 }}
               type="password"
               autoComplete="off"
               value={localDeepseekKey}
