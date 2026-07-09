@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import ConfirmModal from './ConfirmModal';
 import { ResetIcon, SettingsIcon } from './Icons';
+import { getDeepseekApiKey, setDeepseekApiKey } from '@/app/lib/deepseek';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function SettingsModal({
@@ -44,6 +45,7 @@ export default function SettingsModal({
   const [localShowGroupDropdownPc, setLocalShowGroupDropdownPc] = useState(showGroupDropdownPc);
   const [localShowGroupDropdownMobile, setLocalShowGroupDropdownMobile] = useState(showGroupDropdownMobile);
   const [localContainerWidth, setLocalContainerWidth] = useState(containerWidth);
+  const [localDeepseekKey, setLocalDeepseekKey] = useState(() => getDeepseekApiKey());
   const pageWidthTrackRef = useRef(null);
   const [viewWidth, setViewWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const maxWidth = Math.max(viewWidth, 2000);
@@ -321,6 +323,20 @@ export default function SettingsModal({
           </div>
           <div className="form-group" style={{ marginBottom: 16 }}>
             <div className="muted" style={{ marginBottom: 8, fontSize: '0.8rem' }}>
+              DeepSeek API Key（AI 分析功能，仅保存在本机）
+            </div>
+            <input
+              className="input text-[16PX]"
+              type="password"
+              autoComplete="off"
+              value={localDeepseekKey}
+              onChange={(e) => setLocalDeepseekKey(e.target.value)}
+              placeholder="sk-..."
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 16 }}>
+            <div className="muted" style={{ marginBottom: 8, fontSize: '0.8rem' }}>
               数据导出
             </div>
             <div className="row" style={{ gap: 8 }}>
@@ -353,7 +369,8 @@ export default function SettingsModal({
           <div className="row" style={{ justifyContent: 'flex-end', marginTop: 24 }}>
             <button
               className="button"
-              onClick={(e) =>
+              onClick={(e) => {
+                setDeepseekApiKey(localDeepseekKey);
                 saveSettings(
                   e,
                   localSeconds,
@@ -363,8 +380,8 @@ export default function SettingsModal({
                   isMobile ? localDynamicStyleMobile : localDynamicStylePc,
                   localContainerWidth,
                   isMobile ? localShowGroupDropdownMobile : localShowGroupDropdownPc
-                )
-              }
+                );
+              }}
               disabled={localSeconds < 30}
             >
               保存并关闭
