@@ -7,13 +7,13 @@ import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import { isArray, isNumber, isObject, isString } from 'lodash';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatMoney } from '@/lib/utils';
-import { useStorageStore } from '@/app/stores';
+import { useModalStore, useStorageStore } from '@/app/stores';
 import { fetchFundHoldings, fetchFundData } from '@/app/api/fund';
 import { useIsMobile } from '@/app/hooks/useIsMobile';
 import { Stat, ConsecutiveTrendBadge } from '../Common';
@@ -564,6 +564,25 @@ export default function Index({
             <strong>{f.noValuation ? formatDisplayDate(f.jzrq) : formatDisplayDate(f.gztime || f.time)}</strong>
           </div>
           <div className="row" style={{ gap: 4 }}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="icon-button"
+                  onClick={() => useModalStore.setState({ aiAnalysisModal: { open: true, fund: f } })}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    opacity: 1,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Sparkles size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>AI 分析</p>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

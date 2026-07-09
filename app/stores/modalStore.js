@@ -21,7 +21,8 @@ const DEFAULTS = {
   holdingMigrateDialog: { open: false, code: null, name: '', targetGroupId: null },
   cloudConfigModal: { open: false, userId: null, type: null, cloudData: null },
   deviceConflictModal: { open: false, message: '', userId: null, payload: null, isPartial: false },
-  successModal: { open: false, message: '' }
+  successModal: { open: false, message: '' },
+  aiAnalysisModal: { open: false, fund: null }
 };
 
 const getClosedModalState = () => ({
@@ -62,6 +63,7 @@ const getClosedModalState = () => ({
   cloudConfigModal: { ...DEFAULTS.cloudConfigModal },
   deviceConflictModal: { ...DEFAULTS.deviceConflictModal },
   successModal: { ...DEFAULTS.successModal },
+  aiAnalysisModal: { ...DEFAULTS.aiAnalysisModal },
   scanModalOpen: false,
   scanConfirmModalOpen: false,
   isScanning: false,
@@ -124,6 +126,9 @@ export const useModalStore = create((set, get) => ({
   cloudConfigModal: { ...DEFAULTS.cloudConfigModal },
   deviceConflictModal: { ...DEFAULTS.deviceConflictModal },
   successModal: { ...DEFAULTS.successModal },
+
+  // ---- AI 分析 ----
+  aiAnalysisModal: { ...DEFAULTS.aiAnalysisModal },
 
   // ---- Scan modals (migrated from useScanImport) ----
   scanModalOpen: false,

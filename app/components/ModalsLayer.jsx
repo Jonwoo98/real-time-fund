@@ -22,6 +22,7 @@ const ScanPickModal = dynamic(() => import('./ScanPickModal'), { ssr: false });
 const ScanProgressModal = dynamic(() => import('./ScanProgressModal'), { ssr: false });
 const AddHistoryModal = dynamic(() => import('./AddHistoryModal'), { ssr: false });
 const AllSectorsModal = dynamic(() => import('./AllSectorsModal'), { ssr: false });
+const AiAnalysisModal = dynamic(() => import('./AiAnalysisModal'), { ssr: false });
 const DividendMethodModal = dynamic(() => import('./DividendMethodModal'), { ssr: false });
 
 // 高频组件：同步加载
@@ -118,6 +119,7 @@ function ModalsLayerContent({ callbacksRef }) {
 
   // Cloud/sync
   const successModal = useModalStore((s) => s.successModal);
+  const aiAnalysisModal = useModalStore((s) => s.aiAnalysisModal);
   const cloudConfigModal = useModalStore((s) => s.cloudConfigModal);
   const deviceConflictModal = useModalStore((s) => s.deviceConflictModal);
 
@@ -828,6 +830,16 @@ function ModalsLayerContent({ callbacksRef }) {
       <AnimatePresence>
         {successModal.open && (
           <SuccessModal message={successModal.message} onClose={() => setSuccessModal({ open: false, message: '' })} />
+        )}
+      </AnimatePresence>
+
+      {/* ===== Modal: AI 分析 ===== */}
+      <AnimatePresence>
+        {aiAnalysisModal.open && (
+          <AiAnalysisModal
+            fund={aiAnalysisModal.fund}
+            onClose={() => _ms({ aiAnalysisModal: { open: false, fund: null } })}
+          />
         )}
       </AnimatePresence>
 

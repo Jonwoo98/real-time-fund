@@ -2512,6 +2512,22 @@ const PcFundTable = memo(function PcFundTable({
           return (
             <div className="row" style={{ justifyContent: 'center', gap: 4, padding: '8px 0' }}>
               <button
+                className="icon-button"
+                title="AI 分析"
+                onClick={(e) => {
+                  e.stopPropagation?.();
+                  useModalStore.setState({ aiAnalysisModal: { open: true, fund: original.rawFund ?? original } });
+                }}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  opacity: 1,
+                  cursor: 'pointer'
+                }}
+              >
+                <Sparkles size={14} />
+              </button>
+              <button
                 className="icon-button danger"
                 title="删除"
                 onClick={handleClick}
