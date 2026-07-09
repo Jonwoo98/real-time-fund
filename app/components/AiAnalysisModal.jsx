@@ -51,6 +51,8 @@ export default function AiAnalysisModal({ fund, onClose }) {
   const abortRef = useRef(null);
   const listRef = useRef(null);
   const startedRef = useRef(false);
+  // 递增的运行序号：中止旧流后立即开新流时，旧 run 的 catch/finally 不得覆盖新 run 的状态
+  const runIdRef = useRef(0);
 
   const apiKey = getDeepseekApiKey();
   const code = fund?.code;
@@ -66,6 +68,7 @@ export default function AiAnalysisModal({ fund, onClose }) {
 
   /** 驱动一轮对话（含工具循环），完成后持久化 */
   const run = async (baseMessages) => {
+    const runId = ++runIdRef.current;
     setStreaming(true);
     setStreamText('');
     setToolLabel('');
@@ -75,6 +78,7 @@ export default function AiAnalysisModal({ fund, onClose }) {
     try {
       let acc = '';
       for await (const ev of chatWithTools({ apiKey, messages: baseMessages, signal: controller.signal })) {
+        if (runIdRef.current !== runId) return;
         if (ev.type === 'delta') {
           acc += ev.text;
           setStreamText(acc);
@@ -86,21 +90,26 @@ export default function AiAnalysisModal({ fund, onClose }) {
           const finalMessages = ev.messages.map((m, i) => (baseMessages[i]?._auto ? { ...m, _auto: true } : m));
           setMessages(finalMessages);
           saveAiChatHistory(code, finalMessages);
+          setStreamText('');
         }
       }
     } catch (e) {
-      if (e?.name !== 'AbortError') setError(String(e?.message || e));
+      if (runIdRef.current === runId && e?.name !== 'AbortError') setError(String(e?.message || e));
     } finally {
-      setStreaming(false);
-      setStreamText('');
-      setToolLabel('');
-      abortRef.current = null;
+      // 仅最新一轮 run 允许收尾，避免被 abort 的旧 run 覆盖新 run 的状态；
+      // 出错时不清 streamText，保留已输出内容供用户查看（spec 要求）
+      if (runIdRef.current === runId) {
+        setStreaming(false);
+        setToolLabel('');
+        abortRef.current = null;
+      }
     }
   };
 
-  // 打开时恢复历史；无历史且有 key 则自动发起首轮分析
+  // 打开时恢复历史；无历史且有 key 则自动发起首轮分析。
+  // cleanup 中重置 startedRef，保证 StrictMode 双挂载时第二次挂载能重新发起分析
   useEffect(() => {
-    if (!code || startedRef.current) return;
+    if (!code || startedRef.current) return undefined;
     startedRef.current = true;
     const history = getAiChatHistory(code);
     if (history.length > 0) {
@@ -110,11 +119,12 @@ export default function AiAnalysisModal({ fund, onClose }) {
       setMessages(first);
       run(first);
     }
+    return () => {
+      abortRef.current?.abort?.();
+      startedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
-
-  // 卸载时中断请求
-  useEffect(() => () => abortRef.current?.abort?.(), []);
 
   // 滚动到底部
   useEffect(() => {
@@ -226,7 +236,8 @@ export default function AiAnalysisModal({ fund, onClose }) {
                     </div>
                   )
                 )}
-                {streaming && (
+                {/* streaming 中显示实时输出；出错后 streamText 保留，让用户看到已生成的部分 */}
+                {(streaming || streamText) && (
                   <div style={{ margin: '8px 0' }}>
                     {toolLabel && (
                       <div className="muted" style={{ fontSize: '0.75rem', marginBottom: 4 }}>
