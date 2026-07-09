@@ -316,10 +316,11 @@ export async function* chatWithTools({ apiKey, messages, signal }) {
       reader.cancel().catch(() => {});
     }
 
-    if (finishReason === 'tool_calls' && toolCalls.length > 0) {
-      workMessages.push({ role: 'assistant', content, tool_calls: toolCalls });
-      for (const tc of toolCalls) {
-        if (!tc || !tc.id) continue; // 稀疏数组空洞 / 无 id 的残缺 tool call
+    // 过滤稀疏数组空洞 / 无 id 的残缺 tool call，保证 push 的 assistant 消息与 tool 消息一一配对
+    const validToolCalls = toolCalls.filter((tc) => tc && tc.id);
+    if (finishReason === 'tool_calls' && validToolCalls.length > 0) {
+      workMessages.push({ role: 'assistant', content, tool_calls: validToolCalls });
+      for (const tc of validToolCalls) {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const name = tc.function?.name || '';
         yield { type: 'tool', name };
