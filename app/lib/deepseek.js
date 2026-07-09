@@ -37,6 +37,8 @@ export const getAiChatHistory = (code) => {
 
 export const saveAiChatHistory = (code, messages) => {
   const list = isArray(messages) ? messages.slice(-MAX_HISTORY) : [];
+  // 裁剪可能把 assistant(tool_calls)+tool 消息组切断，开头的孤儿 tool 消息会被 API 400 拒绝
+  while (list.length && list[0]?.role === 'tool') list.shift();
   storageStore.setItem(chatStorageKey(code), JSON.stringify(list));
 };
 
@@ -256,48 +258,69 @@ export async function* chatWithTools({ apiKey, messages, signal }) {
     const decoder = new TextDecoder();
     let buf = '';
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const sseLines = buf.split('\n');
-      buf = sseLines.pop();
-      for (const line of sseLines) {
-        const t = line.trim();
-        if (!t.startsWith('data:')) continue;
-        const payload = t.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        let chunk = null;
-        try {
-          chunk = JSON.parse(payload);
-        } catch (e) {
-          continue;
+    /** 解析一行 SSE，更新 finishReason/toolCalls，返回增量正文（无则 null） */
+    const parseLine = (line) => {
+      const t = line.trim();
+      if (!t.startsWith('data:')) return null;
+      const payload = t.slice(5).trim();
+      if (!payload || payload === '[DONE]') return null;
+      let chunk = null;
+      try {
+        chunk = JSON.parse(payload);
+      } catch (e) {
+        return null;
+      }
+      const choice = chunk?.choices?.[0];
+      if (!choice) return null;
+      if (choice.finish_reason) finishReason = choice.finish_reason;
+      const delta = choice.delta || {};
+      if (isArray(delta.tool_calls)) {
+        for (const tc of delta.tool_calls) {
+          const i = tc.index ?? 0;
+          if (!toolCalls[i]) {
+            toolCalls[i] = { id: tc.id || '', type: 'function', function: { name: '', arguments: '' } };
+          }
+          if (tc.id) toolCalls[i].id = tc.id;
+          if (tc.function?.name) toolCalls[i].function.name += tc.function.name;
+          if (tc.function?.arguments) toolCalls[i].function.arguments += tc.function.arguments;
         }
-        const choice = chunk?.choices?.[0];
-        if (!choice) continue;
-        if (choice.finish_reason) finishReason = choice.finish_reason;
-        const delta = choice.delta || {};
-        if (isString(delta.content) && delta.content) {
-          content += delta.content;
-          yield { type: 'delta', text: delta.content };
-        }
-        if (isArray(delta.tool_calls)) {
-          for (const tc of delta.tool_calls) {
-            const i = tc.index ?? 0;
-            if (!toolCalls[i]) {
-              toolCalls[i] = { id: tc.id || '', type: 'function', function: { name: '', arguments: '' } };
-            }
-            if (tc.id) toolCalls[i].id = tc.id;
-            if (tc.function?.name) toolCalls[i].function.name += tc.function.name;
-            if (tc.function?.arguments) toolCalls[i].function.arguments += tc.function.arguments;
+      }
+      return isString(delta.content) && delta.content ? delta.content : null;
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const sseLines = buf.split('\n');
+        buf = sseLines.pop();
+        for (const line of sseLines) {
+          const text = parseLine(line);
+          if (text) {
+            content += text;
+            yield { type: 'delta', text };
           }
         }
       }
+      // 流末尾无换行时，finish_reason 等可能留在残留 buf 里
+      for (const line of (buf + decoder.decode()).split('\n')) {
+        const text = parseLine(line);
+        if (text) {
+          content += text;
+          yield { type: 'delta', text };
+        }
+      }
+    } finally {
+      // 消费方中途丢弃生成器时确保关闭 HTTP 流，避免模型继续生成计费
+      reader.cancel().catch(() => {});
     }
 
     if (finishReason === 'tool_calls' && toolCalls.length > 0) {
       workMessages.push({ role: 'assistant', content, tool_calls: toolCalls });
       for (const tc of toolCalls) {
+        if (!tc || !tc.id) continue; // 稀疏数组空洞 / 无 id 的残缺 tool call
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const name = tc.function?.name || '';
         yield { type: 'tool', name };
         let args = {};
