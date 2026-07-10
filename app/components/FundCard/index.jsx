@@ -24,6 +24,33 @@ import FundDailyEarnings from '../FundDailyEarnings';
 import { ChevronIcon, SettingsIcon, StarIcon, SwitchIcon, TrashIcon, LinkIcon } from '../Icons';
 import { getTagThemeBadgeProps } from '../AddTagDialog';
 
+/** 东方财富个股行情页链接；港股/美股等无 6 位代码的持仓返回 null（不生成链接） */
+const eastmoneyStockUrl = (code) => {
+  const raw = String(code || '').trim();
+  if (!/^\d{6}$/.test(raw)) return null;
+  if (raw.startsWith('4') || raw.startsWith('8')) return `https://quote.eastmoney.com/bj/${raw}.html`;
+  const prefix = raw.startsWith('6') || raw.startsWith('9') ? 'sh' : 'sz';
+  return `https://quote.eastmoney.com/concept/${prefix}${raw}.html`;
+};
+
+/** 重仓股名称：可定位到东方财富行情页时渲染为外链，否则纯文本 */
+const HoldingName = ({ holding }) => {
+  const url = eastmoneyStockUrl(holding?.code);
+  if (!url) return <span className="name">{holding?.name}</span>;
+  return (
+    <a
+      className="name"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      style={{ color: 'inherit', textDecoration: 'underline dotted', textUnderlineOffset: 3 }}
+    >
+      {holding?.name}
+    </a>
+  );
+};
+
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isSameOrAfter);
@@ -943,7 +970,7 @@ export default function Index({
               <div className="list">
                 {topHoldings.holdings.map((h, idx) => (
                   <div className="item" key={idx}>
-                    <span className="name">{h.name}</span>
+                    <HoldingName holding={h} />
                     <div className="values">
                       {isNumber(h.change) && (
                         <span
@@ -1055,7 +1082,7 @@ export default function Index({
                     <div className="list">
                       {topHoldings.holdings.map((h, idx) => (
                         <div className="item" key={idx}>
-                          <span className="name">{h.name}</span>
+                          <HoldingName holding={h} />
                           <div className="values">
                             {isNumber(h.change) && (
                               <span
